@@ -1,0 +1,33 @@
+{
+  "name": "templator",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "scripts": {
+    "start": "parcel serve demo/index.html",
+    "build": "parcel build src/index.ts --dist-dir dist",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "lint": "eslint src --ext .ts,.tsx",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "check": "npm run lint && npm run format"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@eslint/js": "^9.32.0",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.1.0",
+    "eslint": "^9.32.0",
+    "globals": "^16.3.0",
+    "jest": "^30.0.5",
+    "jest-environment-jsdom": "^30.0.5",
+    "jiti": "^2.5.1",
+    "parcel": "^2.15.4",
+    "prettier": "3.6.2",
+    "ts-jest": "^29.4.0",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.38.0"
+  }
+}

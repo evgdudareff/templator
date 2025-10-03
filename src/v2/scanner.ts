@@ -11,6 +11,7 @@ export class Scanner {
   isInCloseTag: boolean = false;
   isInAttrName: boolean = false;
   isInAttrValue: boolean = false;
+  isInVarIdentifier: boolean = false;
 
   neverChar = '__NEVER_CHAR';
   alphabeticRegexp = /^[a-zA-Z]$/;
@@ -29,7 +30,7 @@ export class Scanner {
 
   advance() {
     const currChar = this.source[this.currentPos];
-    this.currentPos += 1;
+    this.incrementCurrPos();
     return currChar;
   }
 
@@ -57,21 +58,15 @@ export class Scanner {
     if (this.isEnd()) {
       return false;
     }
-    return this.isAlphabetic(this.peek());
+    const char = this.peek();
+    return char === this.neverChar ? false : this.alphabeticRegexp.test(char);
   }
 
   matchTagNameDigit() {
     if (this.isEnd()) {
       return false;
     }
-    return this.isTagDigit(this.peek());
-  }
-
-  isAlphabetic(char: string) {
-    return char === this.neverChar ? false : this.alphabeticRegexp.test(char);
-  }
-
-  isTagDigit(char: string) {
+    const char = this.peek();
     return char === this.neverChar ? false : char >= '1' && char <= '6';
   }
 
@@ -84,6 +79,9 @@ export class Scanner {
       switch (char) {
         case '"':
           this.addToken(TokenType.Quote);
+          if (this.isInOpenTag && this.isInAttrValue && this.matchChar(' ')) {
+            this.isInAttrValue = false;
+          }
           break;
 
         case '>':
@@ -113,8 +111,25 @@ export class Scanner {
         }
 
         case ' ': {
-          if (this.isInOpenTag && this.matchAlphabetChar()) {
+          if (this.isInOpenTag && !this.isInAttrValue && this.matchAlphabetChar()) {
             this.isInAttrName = true;
+          }
+          break;
+        }
+
+        case '{': {
+          if (this.matchChar('{')) {
+            this.incrementCurrPos();
+            this.addToken(TokenType.VarOpen);
+            this.isInVarIdentifier = true;
+          }
+          break;
+        }
+
+        case '}': {
+          if (this.matchChar('}')) {
+            this.incrementCurrPos();
+            this.addToken(TokenType.VarClose);
           }
           break;
         }
@@ -137,12 +152,24 @@ export class Scanner {
             break;
           }
 
+          if (this.isInVarIdentifier) {
+            while (!this.isEnd() && this.peek() !== '}') {
+              this.incrementCurrPos();
+            }
+            this.addToken(TokenType.identifier);
+            this.isInVarIdentifier = false;
+            break;
+          }
+
           if (this.isInAttrValue) {
-            while (!this.isEnd() && this.peek() !== '"') {
+            while (!this.isEnd() && !['"', ' ', '{'].includes(this.peek())) {
               this.incrementCurrPos();
             }
             this.addToken(TokenType.Text);
-            this.isInAttrValue = false;
+            if (this.peek() === '"') {
+              this.isInAttrValue = false;
+            }
+
             break;
           }
 
@@ -178,6 +205,15 @@ export class Scanner {
   }
 }
 
+// const scanner = new Scanner(`
+//     <h1 class="class-1 {{customClass1}} class-2 {{customClass2}}" id="1234" data-user-on>
+//         <span>Scanner</span>
+//         Some text
+//     </h1>
+// `);
+//
+// const tokens = scanner.startScan();
+//
 // tokens.forEach((token) => {
 //   console.log(token);
 // });

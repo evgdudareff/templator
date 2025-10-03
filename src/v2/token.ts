@@ -1,4 +1,4 @@
-import { TokenType } from './tokenType.ts';
+import { TokenType } from './constants.ts';
 
 export class Token {
   tokenType: TokenType;

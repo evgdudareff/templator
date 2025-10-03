@@ -1,5 +1,5 @@
 import { Token } from './token.ts';
-import { TokenType } from './tokenType.ts';
+import { ScannerMode, TokenType } from './constants.ts';
 
 export class Scanner {
   source: string;
@@ -7,12 +7,7 @@ export class Scanner {
   currentPos: number = 0;
   line: number = 0;
   tokens: Token[] = [];
-  isInOpenTag: boolean = false;
-  isInCloseTag: boolean = false;
-  isInAttrName: boolean = false;
-  isInAttrValue: boolean = false;
-  isInVarIdentifier: boolean = false;
-
+  mode: ScannerMode = ScannerMode.Text;
   neverChar = '__NEVER_CHAR';
   alphabeticRegexp = /^[a-zA-Z]$/;
 
@@ -20,6 +15,7 @@ export class Scanner {
     this.source = source;
   }
 
+  // helpers methods start
   isEnd() {
     return this.currentPos >= this.source.length;
   }
@@ -70,135 +66,174 @@ export class Scanner {
     return char === this.neverChar ? false : char >= '1' && char <= '6';
   }
 
+  incrementCurrPosWhileIsNotEndAndPredicate(predicate: (...args: unknown[]) => boolean) {
+    while (!this.isEnd() && predicate()) {
+      this.incrementCurrPos();
+    }
+  }
+  // helpers methods end
+
+  // scan methods start
+  scanOpenOrCloseTagStart() {
+    if (this.matchAlphabetChar()) {
+      this.addToken(TokenType.TagOpen);
+      this.mode = ScannerMode.OpenTag;
+    } else if (this.matchChar('/')) {
+      this.incrementCurrPos();
+      this.addToken(TokenType.TagEndClose);
+      this.mode = ScannerMode.CloseTag;
+    }
+  }
+
+  scanOpenOrCloseTagEnd() {
+    this.addToken(TokenType.TagClose);
+    this.mode = ScannerMode.Text;
+  }
+
+  scanOpenOrCloseTagName() {
+    if (this.matchAlphabetChar() || this.matchTagNameDigit()) {
+      this.incrementCurrPosWhileIsNotEndAndPredicate(() => !['>', ' '].includes(this.peek()));
+      this.addToken(TokenType.TagName);
+    }
+  }
+
+  scanQuote() {
+    this.addToken(TokenType.Quote);
+  }
+
+  scanEqual() {
+    this.addToken(TokenType.Equal);
+    this.mode = ScannerMode.AttrValue;
+  }
+
+  scanSpace() {
+    if (this.mode === ScannerMode.OpenTag && this.matchAlphabetChar()) {
+      this.mode = ScannerMode.AttrName;
+    }
+  }
+
+  scanOpenBracket() {
+    if (this.matchChar('{')) {
+      this.incrementCurrPos();
+      this.addToken(TokenType.VarOpen);
+      this.mode = ScannerMode.VarIdentifier;
+    }
+  }
+
+  scanCloseBracket() {
+    if (this.matchChar('}')) {
+      this.incrementCurrPos();
+      this.addToken(TokenType.VarClose);
+
+      if (this.peek() === ' ') {
+        this.mode = ScannerMode.AttrValue;
+      } else {
+        this.mode = ScannerMode.OpenTag;
+      }
+    }
+  }
+
+  scanAttrName() {
+    this.incrementCurrPosWhileIsNotEndAndPredicate(() => !['=', '>', ' '].includes(this.peek()));
+    this.addToken(TokenType.AttrName);
+    this.mode = ScannerMode.Text;
+  }
+
+  scanAttrValue() {
+    this.incrementCurrPosWhileIsNotEndAndPredicate(() => !['"', ' ', '{'].includes(this.peek()));
+    this.addToken(TokenType.Text);
+    if (this.peek() === '"') {
+      this.mode = ScannerMode.OpenTag;
+    }
+  }
+
+  scanVarIdentifier() {
+    this.incrementCurrPosWhileIsNotEndAndPredicate(() => !['}'].includes(this.peek()));
+    this.addToken(TokenType.identifier);
+  }
+
+  scanText() {
+    this.incrementCurrPosWhileIsNotEndAndPredicate(() => !['<'].includes(this.peek()));
+    this.addToken(TokenType.Text);
+    this.mode = ScannerMode.Text;
+  }
+  // scan methods end
+
+  // aggregation scan methods start
+  scanByMode() {
+    switch (this.mode) {
+      case ScannerMode.AttrName:
+        this.scanAttrName();
+        break;
+
+      case ScannerMode.AttrValue:
+        this.scanAttrValue();
+        break;
+
+      case ScannerMode.VarIdentifier:
+        this.scanVarIdentifier();
+        break;
+
+      case ScannerMode.OpenTag:
+      case ScannerMode.CloseTag:
+        this.scanOpenOrCloseTagName();
+        break;
+
+      default:
+        this.scanText();
+        break;
+    }
+  }
+
+  scanByChar(char: string) {
+    switch (char) {
+      case '<':
+        this.scanOpenOrCloseTagStart();
+        break;
+
+      case '>':
+        this.scanOpenOrCloseTagEnd();
+        break;
+
+      case '"':
+        this.scanQuote();
+        break;
+
+      case '=':
+        this.scanEqual();
+        break;
+
+      case ' ':
+        this.scanSpace();
+        break;
+
+      case '{':
+        this.scanOpenBracket();
+        break;
+
+      case '}':
+        this.scanCloseBracket();
+        break;
+
+      case '\n':
+        this.line += 1;
+        break;
+
+      case '\t':
+      case '\r':
+        break;
+
+      default:
+        this.scanByMode();
+    }
+  }
+  // aggregation scan methods end
+
+  // main method
   startScan() {
     while (!this.isEnd()) {
       this.startPos = this.currentPos;
-
-      const char = this.advance();
-
-      switch (char) {
-        case '"':
-          this.addToken(TokenType.Quote);
-          if (this.isInOpenTag && this.isInAttrValue && this.matchChar(' ')) {
-            this.isInAttrValue = false;
-          }
-          break;
-
-        case '>':
-          this.addToken(TokenType.TagClose);
-          if (this.isInOpenTag) {
-            this.isInOpenTag = false;
-          } else if (this.isInCloseTag) {
-            this.isInCloseTag = false;
-          }
-          break;
-
-        case '=':
-          this.addToken(TokenType.Equal);
-          this.isInAttrValue = true;
-          break;
-
-        case '<': {
-          if (this.matchAlphabetChar()) {
-            this.addToken(TokenType.TagOpen);
-            this.isInOpenTag = true;
-          } else if (this.matchChar('/')) {
-            this.incrementCurrPos();
-            this.addToken(TokenType.TagEndClose);
-            this.isInCloseTag = true;
-          }
-          break;
-        }
-
-        case ' ': {
-          if (this.isInOpenTag && !this.isInAttrValue && this.matchAlphabetChar()) {
-            this.isInAttrName = true;
-          }
-          break;
-        }
-
-        case '{': {
-          if (this.matchChar('{')) {
-            this.incrementCurrPos();
-            this.addToken(TokenType.VarOpen);
-            this.isInVarIdentifier = true;
-          }
-          break;
-        }
-
-        case '}': {
-          if (this.matchChar('}')) {
-            this.incrementCurrPos();
-            this.addToken(TokenType.VarClose);
-          }
-          break;
-        }
-
-        case '\n':
-          this.line += 1;
-          break;
-
-        case '\t':
-        case '\r':
-          break;
-
-        default:
-          if (this.isInAttrName) {
-            while (!this.isEnd() && !['=', '>', ' '].includes(this.peek())) {
-              this.incrementCurrPos();
-            }
-            this.addToken(TokenType.AttrName);
-            this.isInAttrName = false;
-            break;
-          }
-
-          if (this.isInVarIdentifier) {
-            while (!this.isEnd() && this.peek() !== '}') {
-              this.incrementCurrPos();
-            }
-            this.addToken(TokenType.identifier);
-            this.isInVarIdentifier = false;
-            break;
-          }
-
-          if (this.isInAttrValue) {
-            while (!this.isEnd() && !['"', ' ', '{'].includes(this.peek())) {
-              this.incrementCurrPos();
-            }
-            this.addToken(TokenType.Text);
-            if (this.peek() === '"') {
-              this.isInAttrValue = false;
-            }
-
-            break;
-          }
-
-          if (
-            (this.isInOpenTag || this.isInCloseTag) &&
-            (this.matchAlphabetChar() || this.matchTagNameDigit())
-          ) {
-            while (!this.isEnd() && !['>', ' '].includes(this.peek())) {
-              this.incrementCurrPos();
-            }
-            this.addToken(TokenType.TagName);
-            break;
-          }
-
-          if (
-            !this.isInOpenTag &&
-            !this.isInCloseTag &&
-            !this.isInAttrName &&
-            !this.isInAttrValue
-          ) {
-            while (!this.isEnd() && this.peek() !== '<') {
-              this.incrementCurrPos();
-            }
-            this.addToken(TokenType.Text);
-            break;
-          }
-
-          console.log(`Unknown character ${char}, line ${this.line}`);
-      }
+      this.scanByChar(this.advance());
     }
 
     return this.tokens;
@@ -206,9 +241,8 @@ export class Scanner {
 }
 
 // const scanner = new Scanner(`
-//     <h1 class="class-1 {{customClass1}} class-2 {{customClass2}}" id="1234" data-user-on>
-//         <span>Scanner</span>
-//         Some text
+//     <h1 id="1234">
+//         <span>{{customText}}</span>
 //     </h1>
 // `);
 //
@@ -217,6 +251,3 @@ export class Scanner {
 // tokens.forEach((token) => {
 //   console.log(token);
 // });
-
-// отрефакторить
-// написать тесты для готового функционала

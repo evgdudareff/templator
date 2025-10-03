@@ -26,3 +26,12 @@ export enum TokenType {
   In = 'IN', // in
   EndFor = 'END_FOR', // endfor
 }
+
+export enum ScannerMode {
+  OpenTag = 'OPEN_TAG',
+  CloseTag = 'CLOSE_TAG',
+  AttrName = 'ATTR_NAME',
+  AttrValue = 'ATTR_VALUE',
+  VarIdentifier = 'VAR_IDENTIFIER',
+  Text = 'TEXT',
+}

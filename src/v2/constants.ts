@@ -1,3 +1,5 @@
+import { Token } from './token.js';
+
 export enum TokenType {
   // SINGLE CHARACTERS
   Equal = 'EQUAL', // =
@@ -15,7 +17,8 @@ export enum TokenType {
   // LITERALS
   TagName = 'TAG_NAME', // div, img ...
   AttrName = 'ATTR_NAME', // class, id ...
-  Text = 'TEXT', // attribute value, other text
+  AttrValue = 'ATTR_VALUE', // attribute text value
+  Text = 'TEXT', // other text
   identifier = 'IDENTIFIER', // variable name
 
   //KEYWORDS
@@ -34,4 +37,14 @@ export enum ScannerMode {
   AttrValue = 'ATTR_VALUE',
   VarIdentifier = 'VAR_IDENTIFIER',
   Text = 'TEXT',
+  Statement = 'STATEMENT',
 }
+
+export const keywordTokenTypeMap = {
+  if: TokenType.If,
+  else: TokenType.Else,
+  endif: TokenType.EndIf,
+  for: TokenType.For,
+  in: TokenType.In,
+  endfor: TokenType.EndFor,
+};

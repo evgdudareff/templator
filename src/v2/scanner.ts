@@ -1,5 +1,5 @@
 import { Token } from './token.ts';
-import { ScannerMode, TokenType } from './constants.ts';
+import { keywordTokenTypeMap, ScannerMode, TokenType } from './constants.ts';
 
 export class Scanner {
   source: string;
@@ -7,7 +7,7 @@ export class Scanner {
   currentPos: number = 0;
   line: number = 0;
   tokens: Token[] = [];
-  mode: ScannerMode = ScannerMode.Text;
+  modeStack: ScannerMode[] = [ScannerMode.Text];
   neverChar = '__NEVER_CHAR';
   alphabeticRegexp = /^[a-zA-Z]$/;
 
@@ -16,6 +16,18 @@ export class Scanner {
   }
 
   // helpers methods start
+  getMode() {
+    return this.modeStack[this.modeStack.length - 1];
+  }
+
+  pushMode(m: ScannerMode) {
+    this.modeStack.push(m);
+  }
+
+  popMode() {
+    return this.modeStack.pop();
+  }
+
   isEnd() {
     return this.currentPos >= this.source.length;
   }
@@ -58,57 +70,56 @@ export class Scanner {
     return char === this.neverChar ? false : this.alphabeticRegexp.test(char);
   }
 
-  matchTagNameDigit() {
-    if (this.isEnd()) {
-      return false;
-    }
-    const char = this.peek();
-    return char === this.neverChar ? false : char >= '1' && char <= '6';
-  }
-
-  incrementCurrPosWhileIsNotEndAndPredicate(predicate: (...args: unknown[]) => boolean) {
-    while (!this.isEnd() && predicate()) {
+  advanceWhile(predicate: (char: string) => boolean) {
+    while (!this.isEnd() && predicate(this.peek())) {
       this.incrementCurrPos();
     }
   }
   // helpers methods end
 
   // scan methods start
-  scanOpenOrCloseTagStart() {
+  scanTagStart() {
     if (this.matchAlphabetChar()) {
       this.addToken(TokenType.TagOpen);
-      this.mode = ScannerMode.OpenTag;
+      this.pushMode(ScannerMode.OpenTag);
     } else if (this.matchChar('/')) {
       this.incrementCurrPos();
       this.addToken(TokenType.TagEndClose);
-      this.mode = ScannerMode.CloseTag;
+      this.pushMode(ScannerMode.CloseTag);
     }
   }
 
-  scanOpenOrCloseTagEnd() {
+  scanTagEnd() {
     this.addToken(TokenType.TagClose);
-    this.mode = ScannerMode.Text;
+    while (this.getMode() !== ScannerMode.Text) {
+      this.popMode();
+    }
   }
 
   scanOpenOrCloseTagName() {
-    if (this.matchAlphabetChar() || this.matchTagNameDigit()) {
-      this.incrementCurrPosWhileIsNotEndAndPredicate(() => !['>', ' '].includes(this.peek()));
-      this.addToken(TokenType.TagName);
-    }
+    this.advanceWhile((currChar) => !['>', ' '].includes(currChar));
+    this.addToken(TokenType.TagName);
   }
 
   scanQuote() {
     this.addToken(TokenType.Quote);
+    if (this.getMode() === ScannerMode.AttrValue) {
+      // twice popMode(), to pop attrValue and attrName. Returning to tagOpen
+      this.popMode();
+      this.popMode();
+    } else if (this.getMode() === ScannerMode.AttrName) {
+      this.pushMode(ScannerMode.AttrValue);
+    }
   }
 
   scanEqual() {
     this.addToken(TokenType.Equal);
-    this.mode = ScannerMode.AttrValue;
   }
 
   scanSpace() {
-    if (this.mode === ScannerMode.OpenTag && this.matchAlphabetChar()) {
-      this.mode = ScannerMode.AttrName;
+    const mode = this.getMode();
+    if (mode === ScannerMode.OpenTag && this.matchAlphabetChar()) {
+      this.pushMode(ScannerMode.AttrName);
     }
   }
 
@@ -116,7 +127,11 @@ export class Scanner {
     if (this.matchChar('{')) {
       this.incrementCurrPos();
       this.addToken(TokenType.VarOpen);
-      this.mode = ScannerMode.VarIdentifier;
+      this.pushMode(ScannerMode.VarIdentifier);
+    } else if (this.matchChar('%')) {
+      this.incrementCurrPos();
+      this.addToken(TokenType.StmtOpen);
+      this.pushMode(ScannerMode.Statement);
     }
   }
 
@@ -124,44 +139,52 @@ export class Scanner {
     if (this.matchChar('}')) {
       this.incrementCurrPos();
       this.addToken(TokenType.VarClose);
-
-      if (this.peek() === ' ') {
-        this.mode = ScannerMode.AttrValue;
-      } else {
-        this.mode = ScannerMode.OpenTag;
-      }
+      this.popMode();
     }
   }
 
   scanAttrName() {
-    this.incrementCurrPosWhileIsNotEndAndPredicate(() => !['=', '>', ' '].includes(this.peek()));
+    this.advanceWhile((currChar) => !['=', '>', ' '].includes(currChar));
     this.addToken(TokenType.AttrName);
-    this.mode = ScannerMode.Text;
   }
 
   scanAttrValue() {
-    this.incrementCurrPosWhileIsNotEndAndPredicate(() => !['"', ' ', '{'].includes(this.peek()));
-    this.addToken(TokenType.Text);
-    if (this.peek() === '"') {
-      this.mode = ScannerMode.OpenTag;
-    }
+    this.advanceWhile((currChar) => !['"', ' ', '{'].includes(currChar));
+    this.addToken(TokenType.AttrValue);
   }
 
   scanVarIdentifier() {
-    this.incrementCurrPosWhileIsNotEndAndPredicate(() => !['}'].includes(this.peek()));
+    this.advanceWhile((currChar) => currChar !== '}');
     this.addToken(TokenType.identifier);
   }
 
   scanText() {
-    this.incrementCurrPosWhileIsNotEndAndPredicate(() => !['<'].includes(this.peek()));
+    this.advanceWhile((currChar) => !['<', '{'].includes(currChar));
     this.addToken(TokenType.Text);
-    this.mode = ScannerMode.Text;
+  }
+
+  scanPercent() {
+    if (this.matchChar('}')) {
+      this.incrementCurrPos();
+      this.addToken(TokenType.StmtClose);
+      this.popMode();
+    }
+  }
+
+  scanStatement() {
+    this.advanceWhile((currChar) => currChar !== ' ');
+    const keyWord = this.source.slice(this.startPos, this.currentPos);
+    if (keyWord in keywordTokenTypeMap) {
+      this.addToken(keywordTokenTypeMap[keyWord as keyof typeof keywordTokenTypeMap]);
+    } else {
+      this.addToken(TokenType.identifier);
+    }
   }
   // scan methods end
 
   // aggregation scan methods start
   scanByMode() {
-    switch (this.mode) {
+    switch (this.getMode()) {
       case ScannerMode.AttrName:
         this.scanAttrName();
         break;
@@ -179,6 +202,10 @@ export class Scanner {
         this.scanOpenOrCloseTagName();
         break;
 
+      case ScannerMode.Statement:
+        this.scanStatement();
+        break;
+
       default:
         this.scanText();
         break;
@@ -188,11 +215,11 @@ export class Scanner {
   scanByChar(char: string) {
     switch (char) {
       case '<':
-        this.scanOpenOrCloseTagStart();
+        this.scanTagStart();
         break;
 
       case '>':
-        this.scanOpenOrCloseTagEnd();
+        this.scanTagEnd();
         break;
 
       case '"':
@@ -213,6 +240,10 @@ export class Scanner {
 
       case '}':
         this.scanCloseBracket();
+        break;
+
+      case '%':
+        this.scanPercent();
         break;
 
       case '\n':
@@ -239,15 +270,3 @@ export class Scanner {
     return this.tokens;
   }
 }
-
-// const scanner = new Scanner(`
-//     <h1 id="1234">
-//         <span>{{customText}}</span>
-//     </h1>
-// `);
-//
-// const tokens = scanner.startScan();
-//
-// tokens.forEach((token) => {
-//   console.log(token);
-// });

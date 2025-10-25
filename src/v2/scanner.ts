@@ -155,7 +155,7 @@ export class Scanner {
 
   scanVarIdentifier() {
     this.advanceWhile((currChar) => currChar !== '}');
-    this.addToken(TokenType.identifier);
+    this.addToken(TokenType.Identifier);
   }
 
   scanText() {
@@ -177,7 +177,7 @@ export class Scanner {
     if (keyWord in keywordTokenTypeMap) {
       this.addToken(keywordTokenTypeMap[keyWord as keyof typeof keywordTokenTypeMap]);
     } else {
-      this.addToken(TokenType.identifier);
+      this.addToken(TokenType.Identifier);
     }
   }
   // scan methods end

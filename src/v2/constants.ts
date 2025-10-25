@@ -1,5 +1,3 @@
-import { Token } from './token.js';
-
 export enum TokenType {
   // SINGLE CHARACTERS
   Equal = 'EQUAL', // =
@@ -19,7 +17,7 @@ export enum TokenType {
   AttrName = 'ATTR_NAME', // class, id ...
   AttrValue = 'ATTR_VALUE', // attribute text value
   Text = 'TEXT', // other text
-  identifier = 'IDENTIFIER', // variable name
+  Identifier = 'IDENTIFIER', // variable name
 
   //KEYWORDS
   If = 'IF', // if
@@ -29,6 +27,15 @@ export enum TokenType {
   In = 'IN', // in
   EndFor = 'END_FOR', // endfor
 }
+
+// expression - (elementNode | textNode | var | ifNode | forNode)*
+// elementNode - TagOpen TagName (attribute)* TagClose expression TagEndClose TagName TagClose
+// textNode - Text
+// attribute - AttrName | AttrName Equal Quote attributeValue+ Quote
+// attributeValue = AttrValue | var | ifNode
+// ifNode - StmtOpen If identifier StmtClose expression (StmtOpen Else StmtClose expression)? StmtOpen EndIf StmtClose
+// forNode - StmtOpen For identifier In identifier StmtClose expression  StmtOpen EndFor StmtClose
+// var - VarOpen identifier VarClose
 
 export enum ScannerMode {
   OpenTag = 'OPEN_TAG',

@@ -1,4 +1,4 @@
-import { ScannerMode, TokenType } from './constants.ts';
+import { TokenType } from './constants.ts';
 
 export class Token {
   tokenType: TokenType;

@@ -9,7 +9,6 @@ import {
   VariableExpr,
 } from './parserExpression.ts';
 import { TokenType } from './constants.ts';
-import { Scanner } from './scanner.ts';
 
 export class Parser {
   private current: number = 0;
@@ -84,11 +83,13 @@ export class Parser {
         } else if (this.matchNext(TokenType.For)) {
           const forStmt = this.parseForStmt();
           children.push(forStmt);
+        } else {
+          this.advance();
         }
         break;
       }
 
-      case TokenType.Text: {
+      default: {
         const textNode = new TextNodeExpr(this.tokensToString([this.advance()]));
         children.push(textNode);
         break;
@@ -99,86 +100,93 @@ export class Parser {
 
   private parseForStmt(): ForNodeExpr {
     let pos = this.current;
-    const isValidOpenStatement =
-      tokens[pos].tokenType === TokenType.StmtOpen &&
-      tokens[pos + 1].tokenType === TokenType.For &&
-      tokens[pos + 2].tokenType === TokenType.Identifier &&
-      tokens[pos + 3].tokenType === TokenType.In &&
-      tokens[pos + 4].tokenType === TokenType.Identifier &&
-      tokens[pos + 5].tokenType === TokenType.StmtClose;
+    const openTokens = [
+      TokenType.StmtOpen,
+      TokenType.For,
+      TokenType.Identifier,
+      TokenType.In,
+      TokenType.Identifier,
+      TokenType.StmtClose,
+    ];
+
+    const isValidOpenStatement = openTokens.every(
+      (tokenType, index) => this.tokens[pos + index].tokenType === tokenType,
+    );
 
     if (!isValidOpenStatement) {
-      throw new Error(`Malware open statement tokens at line ${tokens[pos].line}`);
+      throw new Error(`Invalid for statement tokens at line ${this.tokens[pos].line}`);
     }
 
-    const iterateVariable = new VariableExpr(tokens[pos + 2].lexeme);
-    const collectionVariable = new VariableExpr(tokens[pos + 4].lexeme);
+    const iterateVariable = new VariableExpr(this.tokens[pos + 2].lexeme);
+    const collectionVariable = new VariableExpr(this.tokens[pos + 4].lexeme);
     this.advance(6);
 
-    const expression = this.expression();
+    const bodyTemplate = this.expression();
+
     pos = this.current;
-    const isValidCloseStatement =
-      tokens[pos].tokenType === TokenType.StmtOpen &&
-      tokens[pos + 1].tokenType === TokenType.EndFor &&
-      tokens[pos + 2].tokenType === TokenType.StmtClose;
+    const closeTokens = [TokenType.StmtOpen, TokenType.EndFor, TokenType.StmtClose];
+
+    const isValidCloseStatement = closeTokens.every(
+      (tokenType, index) => this.tokens[pos + index].tokenType === tokenType,
+    );
 
     if (!isValidCloseStatement) {
-      throw new Error(`Malware close statement tokens at line ${tokens[pos].line}`);
+      throw new Error(`Invalid for statement closing tokens at line ${this.tokens[pos].line}`);
     }
 
     this.advance(3);
-    return new ForNodeExpr(iterateVariable, collectionVariable, expression);
+    return new ForNodeExpr(iterateVariable, collectionVariable, bodyTemplate);
   }
+
   private parseIfElse(): IfNodeExpr {
     let pos = this.current;
-    const isValidOpenStatement =
-      tokens[pos].tokenType === TokenType.StmtOpen &&
-      tokens[pos + 1].tokenType === TokenType.If &&
-      tokens[pos + 2].tokenType === TokenType.Identifier &&
-      tokens[pos + 3].tokenType === TokenType.StmtClose &&
-      tokens[pos + 4].tokenType === TokenType.AttrValue;
 
+    const openTokens = [
+      TokenType.StmtOpen,
+      TokenType.If,
+      TokenType.Identifier,
+      TokenType.StmtClose,
+    ];
+    const isValidOpenStatement = openTokens.every(
+      (tokenType, index) => this.tokens[pos + index].tokenType === tokenType,
+    );
     if (!isValidOpenStatement) {
-      throw new Error(`Malware open statement tokens at line ${tokens[pos].line}`);
+      throw new Error(`Invalid if statement tokens at line ${this.tokens[pos].line}`);
     }
-    const ifMatchVariable = new VariableExpr(tokens[pos + 2].lexeme);
-    const ifBranchTemplate = new TextNodeExpr(tokens[pos + 4].lexeme);
-    let elseBranchTemplate;
 
-    this.advance(5);
+    const ifMatchVariable = new VariableExpr(this.tokens[pos + 2].lexeme);
+    this.advance(4);
+    const ifBranchTemplate = this.expression();
     pos = this.current;
+    let elseBranchTemplate;
 
     const hasElseBranchStatement =
       isValidOpenStatement &&
-      tokens[pos].tokenType === TokenType.StmtOpen &&
-      tokens[pos + 1].tokenType === TokenType.Else;
+      this.tokens[pos].tokenType === TokenType.StmtOpen &&
+      this.tokens[pos + 1].tokenType === TokenType.Else;
 
     const isValidElseStatement =
       hasElseBranchStatement &&
-      tokens[pos + 1].tokenType === TokenType.Else &&
-      tokens[pos + 2].tokenType === TokenType.StmtClose &&
-      tokens[pos + 3].tokenType === TokenType.AttrValue;
+      this.tokens[pos + 1].tokenType === TokenType.Else &&
+      this.tokens[pos + 2].tokenType === TokenType.StmtClose;
 
     if (hasElseBranchStatement && !isValidElseStatement) {
-      throw new Error(`Malware else branch statement tokens at line ${tokens[pos].line}`);
+      throw new Error(`Invalid else branch statement tokens at line ${this.tokens[pos].line}`);
     }
 
-    if (hasElseBranchStatement) {
-      elseBranchTemplate = isValidElseStatement
-        ? new TextNodeExpr(tokens[pos + 3].lexeme)
-        : undefined;
-      this.advance(4);
+    if (hasElseBranchStatement && isValidElseStatement) {
+      this.advance(3);
+      elseBranchTemplate = this.expression();
     }
-
     pos = this.current;
 
     const isValidCloseStatement =
-      tokens[pos].tokenType === TokenType.StmtOpen &&
-      tokens[pos + 1].tokenType === TokenType.EndIf &&
-      tokens[pos + 2].tokenType === TokenType.StmtClose;
+      this.tokens[pos].tokenType === TokenType.StmtOpen &&
+      this.tokens[pos + 1].tokenType === TokenType.EndIf &&
+      this.tokens[pos + 2].tokenType === TokenType.StmtClose;
 
     if (!isValidCloseStatement) {
-      throw new Error(`Malware close statement tokens at line ${tokens[pos].line}`);
+      throw new Error(`Malware close statement tokens at line ${this.tokens[pos].line}`);
     }
 
     this.advance(3);
@@ -189,16 +197,17 @@ export class Parser {
   private parseVariableExpr(): VariableExpr {
     const pos = this.current;
     const isValidVariableExpr =
-      tokens[pos].tokenType === TokenType.VarOpen &&
-      tokens[pos + 1].tokenType === TokenType.Identifier &&
-      tokens[pos + 2].tokenType === TokenType.VarClose;
+      this.tokens[pos].tokenType === TokenType.VarOpen &&
+      this.tokens[pos + 1].tokenType === TokenType.Identifier &&
+      this.tokens[pos + 2].tokenType === TokenType.VarClose;
 
     if (!isValidVariableExpr) {
-      throw new Error(`Malware variable statement tokens at line ${tokens[pos].line}`);
+      throw new Error(`Invalid variable statement tokens at line ${this.tokens[pos].line}`);
     }
 
     this.advance(3);
-    return new VariableExpr(tokens[pos + 1].lexeme);
+    const variableName = this.tokens[pos + 1].lexeme.replace(/\s+$/, '');
+    return new VariableExpr(variableName);
   }
 
   private parseAttributes(): AttributeExpr[] {
@@ -283,26 +292,3 @@ export class Parser {
     return this.expression();
   }
 }
-
-// const scanner = new Scanner(
-//   `<div class="div-wrapper div-wrapper-big"><span class="{% if isPrimary %}btn-primary{% else %}btn-secondary{% endif %}" data-qa="{% if isPrimary %} main-title {% endif %}">{{customText}}</span>{{otherText}}</div>`,
-// );
-// const scanner = new Scanner(`Hello world! <div>someText</div> Whis is suffix text)`);
-// const scanner = new Scanner(`<div>someText</div><div>someText</div>`);
-// const scanner = new Scanner(`
-//    <button class="{% if isPrimary %}btn-primary{% else %}btn-secondary{% endif %}" data-qa="{% if isPrimary %} main-title {% endif %}">
-//   Click me
-// </button>
-//     `);
-const scanner = new Scanner(`
-     <ul>
-      {% for user in users %}
-        <li>{{ user.name }}</li>
-      {% endfor %}
-    </ul>
-  `);
-const tokens = scanner.startScan();
-
-const parser = new Parser(tokens);
-const expr = parser.parse();
-console.log(expr);

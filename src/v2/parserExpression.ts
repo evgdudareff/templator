@@ -26,8 +26,8 @@ export class VariableExpr {
 export class IfNodeExpr {
   constructor(
     public matchVariable: VariableExpr,
-    public ifBranchTemplate: ElementNodeExpr | TextNodeExpr | VariableExpr,
-    public elseBranchTemplate?: ElementNodeExpr | TextNodeExpr | VariableExpr,
+    public ifBranchTemplate: Expr,
+    public elseBranchTemplate?: Expr,
   ) {}
 }
 

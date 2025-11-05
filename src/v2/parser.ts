@@ -3,6 +3,7 @@ import {
   AttributeExpr,
   ElementNodeExpr,
   Expr,
+  ForNodeExpr,
   IfNodeExpr,
   TextNodeExpr,
   VariableExpr,
@@ -32,6 +33,10 @@ export class Parser {
     return this.tokens[this.current];
   }
 
+  private peekNext(): Token {
+    return this.tokens[this.current + 1];
+  }
+
   private advance(step: number = 1): Token {
     if (!this.isAtEnd()) {
       this.current += step;
@@ -45,37 +50,85 @@ export class Parser {
     }
     return this.peek().tokenType == type;
   }
+
+  private matchNext(type: TokenType) {
+    if (this.isAtEnd()) {
+      return false;
+    }
+    return this.peekNext().tokenType == type;
+  }
   // utils methods end
 
   // parse methods start
   private expression(): Expr {
-    const nodes = [];
-
-    while (!this.isAtEnd()) {
-      const currToken = this.advance();
-
-      switch (currToken.tokenType) {
-        case TokenType.TagOpen: {
-          const elementNode = this.parseElementNode();
-          nodes.push(elementNode);
-          break;
-        }
-      }
-    }
-
-    return new Expr(nodes);
-  }
-
-  private parseNotElementNodeChildren(): TextNodeExpr {
     const children = [];
 
-    while (!this.match(TokenType.TagEndClose)) {
-      children.push(this.advance());
-    }
+    const currToken = this.peek();
+    switch (currToken.tokenType) {
+      case TokenType.TagOpen: {
+        const elementNode = this.parseElementNode();
+        children.push(elementNode);
+        break;
+      }
 
-    return new TextNodeExpr(this.tokensToString(children));
+      case TokenType.VarOpen: {
+        const variableExpr = this.parseVariableExpr();
+        children.push(variableExpr);
+        break;
+      }
+
+      case TokenType.StmtOpen: {
+        if (this.matchNext(TokenType.If)) {
+          const ifElse = this.parseIfElse();
+          children.push(ifElse);
+        } else if (this.matchNext(TokenType.For)) {
+          const forStmt = this.parseForStmt();
+          children.push(forStmt);
+        }
+        break;
+      }
+
+      case TokenType.Text: {
+        const textNode = new TextNodeExpr(this.tokensToString([this.advance()]));
+        children.push(textNode);
+        break;
+      }
+    }
+    return children;
   }
 
+  private parseForStmt(): ForNodeExpr {
+    let pos = this.current;
+    const isValidOpenStatement =
+      tokens[pos].tokenType === TokenType.StmtOpen &&
+      tokens[pos + 1].tokenType === TokenType.For &&
+      tokens[pos + 2].tokenType === TokenType.Identifier &&
+      tokens[pos + 3].tokenType === TokenType.In &&
+      tokens[pos + 4].tokenType === TokenType.Identifier &&
+      tokens[pos + 5].tokenType === TokenType.StmtClose;
+
+    if (!isValidOpenStatement) {
+      throw new Error(`Malware open statement tokens at line ${tokens[pos].line}`);
+    }
+
+    const iterateVariable = new VariableExpr(tokens[pos + 2].lexeme);
+    const collectionVariable = new VariableExpr(tokens[pos + 4].lexeme);
+    this.advance(6);
+
+    const expression = this.expression();
+    pos = this.current;
+    const isValidCloseStatement =
+      tokens[pos].tokenType === TokenType.StmtOpen &&
+      tokens[pos + 1].tokenType === TokenType.EndFor &&
+      tokens[pos + 2].tokenType === TokenType.StmtClose;
+
+    if (!isValidCloseStatement) {
+      throw new Error(`Malware close statement tokens at line ${tokens[pos].line}`);
+    }
+
+    this.advance(3);
+    return new ForNodeExpr(iterateVariable, collectionVariable, expression);
+  }
   private parseIfElse(): IfNodeExpr {
     let pos = this.current;
     const isValidOpenStatement =
@@ -88,25 +141,32 @@ export class Parser {
     if (!isValidOpenStatement) {
       throw new Error(`Malware open statement tokens at line ${tokens[pos].line}`);
     }
+    const ifMatchVariable = new VariableExpr(tokens[pos + 2].lexeme);
+    const ifBranchTemplate = new TextNodeExpr(tokens[pos + 4].lexeme);
+    let elseBranchTemplate;
 
     this.advance(5);
+    pos = this.current;
 
     const hasElseBranchStatement =
       isValidOpenStatement &&
-      tokens[pos + 5].tokenType === TokenType.StmtOpen &&
-      tokens[pos + 6].tokenType === TokenType.Else;
+      tokens[pos].tokenType === TokenType.StmtOpen &&
+      tokens[pos + 1].tokenType === TokenType.Else;
 
     const isValidElseStatement =
       hasElseBranchStatement &&
-      tokens[pos + 6].tokenType === TokenType.Else &&
-      tokens[pos + 7].tokenType === TokenType.StmtClose &&
-      tokens[pos + 8].tokenType === TokenType.AttrValue;
+      tokens[pos + 1].tokenType === TokenType.Else &&
+      tokens[pos + 2].tokenType === TokenType.StmtClose &&
+      tokens[pos + 3].tokenType === TokenType.AttrValue;
 
     if (hasElseBranchStatement && !isValidElseStatement) {
       throw new Error(`Malware else branch statement tokens at line ${tokens[pos].line}`);
     }
 
     if (hasElseBranchStatement) {
+      elseBranchTemplate = isValidElseStatement
+        ? new TextNodeExpr(tokens[pos + 3].lexeme)
+        : undefined;
       this.advance(4);
     }
 
@@ -122,12 +182,6 @@ export class Parser {
     }
 
     this.advance(3);
-
-    const ifMatchVariable = new VariableExpr(tokens[pos + 2].lexeme);
-    const ifBranchTemplate = new Expr([new TextNodeExpr(tokens[pos + 4].lexeme)]);
-    const elseBranchTemplate = isValidElseStatement
-      ? new Expr([new TextNodeExpr(tokens[pos + 8].lexeme)])
-      : undefined;
 
     return new IfNodeExpr(ifMatchVariable, ifBranchTemplate, elseBranchTemplate);
   }
@@ -201,16 +255,13 @@ export class Parser {
   }
 
   private parseElementNode(): ElementNodeExpr {
+    this.advance();
     const { openTagName, attributes } = this.parseOpenTag();
 
     const children = [];
     while (!this.match(TokenType.TagEndClose)) {
-      if (!this.match(TokenType.TagOpen)) {
-        children.push(this.parseNotElementNodeChildren());
-      } else {
-        this.advance();
-        children.push(this.parseElementNode());
-      }
+      const expression = this.expression();
+      children.push(expression);
     }
 
     if (this.peek().tokenType !== TokenType.TagEndClose) {
@@ -227,21 +278,29 @@ export class Parser {
   }
   // parse methods end
 
-  // main method
+  // main method: accept and parse first of next: <someTag>expr</someTag> or varStmt or ifElseStmt or forStmt or text
   public parse() {
     return this.expression();
   }
 }
 
-const scanner = new Scanner(`
-    <h1 id="1234">
-        <span>{{customText}}</span>
-    </h1>`);
+// const scanner = new Scanner(
+//   `<div class="div-wrapper div-wrapper-big"><span class="{% if isPrimary %}btn-primary{% else %}btn-secondary{% endif %}" data-qa="{% if isPrimary %} main-title {% endif %}">{{customText}}</span>{{otherText}}</div>`,
+// );
+// const scanner = new Scanner(`Hello world! <div>someText</div> Whis is suffix text)`);
+// const scanner = new Scanner(`<div>someText</div><div>someText</div>`);
 // const scanner = new Scanner(`
 //    <button class="{% if isPrimary %}btn-primary{% else %}btn-secondary{% endif %}" data-qa="{% if isPrimary %} main-title {% endif %}">
 //   Click me
 // </button>
 //     `);
+const scanner = new Scanner(`
+     <ul>
+      {% for user in users %}
+        <li>{{ user.name }}</li>
+      {% endfor %}
+    </ul>
+  `);
 const tokens = scanner.startScan();
 
 const parser = new Parser(tokens);

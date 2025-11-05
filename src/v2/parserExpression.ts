@@ -1,8 +1,4 @@
-import { Token } from './token.ts';
-
-export class Expr {
-  constructor(public value: (ElementNodeExpr | TextNodeExpr)[]) {}
-}
+export type Expr = (ElementNodeExpr | TextNodeExpr | VariableExpr | IfNodeExpr | ForNodeExpr)[];
 
 export class TextNodeExpr {
   constructor(public value: string) {}
@@ -18,7 +14,7 @@ export class AttributeExpr {
 export class ElementNodeExpr {
   constructor(
     public tagName: string,
-    public children: (TextNodeExpr | ElementNodeExpr)[],
+    public children: Expr[],
     public attributes: AttributeExpr[],
   ) {}
 }
@@ -30,8 +26,8 @@ export class VariableExpr {
 export class IfNodeExpr {
   constructor(
     public matchVariable: VariableExpr,
-    public ifBranchTemplate: Expr,
-    public elseBranchTemplate?: Expr,
+    public ifBranchTemplate: ElementNodeExpr | TextNodeExpr | VariableExpr,
+    public elseBranchTemplate?: ElementNodeExpr | TextNodeExpr | VariableExpr,
   ) {}
 }
 

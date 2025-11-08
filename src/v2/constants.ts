@@ -28,15 +28,6 @@ export enum TokenType {
   EndFor = 'END_FOR', // endfor
 }
 
-// expression - (elementNode | textNode | var | ifNode | forNode)*
-// elementNode - TagOpen TagName (attribute)* TagClose expression TagEndClose TagName TagClose
-// textNode - Text
-// attribute - AttrName | AttrName Equal Quote attributeValue+ Quote
-// attributeValue = AttrValue | var | ifNode
-// ifNode - StmtOpen If identifier StmtClose expression (StmtOpen Else StmtClose expression)? StmtOpen EndIf StmtClose
-// forNode - StmtOpen For identifier In identifier StmtClose expression  StmtOpen EndFor StmtClose
-// var - VarOpen identifier VarClose
-
 export enum ScannerMode {
   OpenTag = 'OPEN_TAG',
   CloseTag = 'CLOSE_TAG',

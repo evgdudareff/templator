@@ -10,6 +10,17 @@ import {
 } from './parserExpression.ts';
 import { TokenType } from './constants.ts';
 
+// LEXICAL GRAMMAR RULES
+
+// expression - (elementNode | textNode | var | ifNode | forNode)*
+// elementNode - TagOpen TagName (attribute)* TagClose expression TagEndClose TagName TagClose
+// textNode - Text
+// attribute - AttrName | AttrName Equal Quote attributeValue+ Quote
+// attributeValue = AttrValue | var | ifNode
+// ifNode - StmtOpen If identifier StmtClose expression (StmtOpen Else StmtClose expression)? StmtOpen EndIf StmtClose
+// forNode - StmtOpen For identifier In identifier StmtClose expression  StmtOpen EndFor StmtClose
+// var - VarOpen identifier VarClose
+
 export class Parser {
   private current: number = 0;
 
@@ -289,6 +300,11 @@ export class Parser {
 
   // main method: accept and parse first of next: <someTag>expr</someTag> or varStmt or ifElseStmt or forStmt or text
   public parse() {
-    return this.expression();
+    try {
+      return this.expression();
+    } catch (error) {
+      console.error(error);
+      return null;
+    }
   }
 }

@@ -1,81 +1,81 @@
-export interface PrintVisitorInterface {
-  visitTextNode(textNode: TextNodeExpr): void;
+export interface ExpVisitorInterface<T> {
+  visitTextNode(textNode: TextNodeExpr): T;
 
-  visitAttribute(attribute: AttributeExpr): void;
+  visitAttribute(attribute: AttributeExpr): T;
 
-  visitElementNode(elementNode: ElementNodeExpr): void;
+  visitElementNode(elementNode: ElementNodeExpr): T;
 
-  visitVariable(variable: VariableExpr): void;
+  visitVariable(variable: VariableExpr): T;
 
-  visitIfNode(ifNode: IfNodeExpr): void;
+  visitIfNode(ifNode: IfNodeExpr): T;
 
-  visitForNode(forNode: ForNodeExpr): void;
+  visitForNode(forNode: ForNodeExpr): T;
 }
 
-export interface PrintAccepterInterface {
-  accept(printVisitor: PrintVisitorInterface): void;
+export interface AccepterInterface {
+  accept<R>(visitor: ExpVisitorInterface<R>): R;
 }
 
-export class TextNodeExpr implements PrintAccepterInterface {
+export class TextNodeExpr implements AccepterInterface {
   constructor(public value: string) {}
 
-  accept(printVisitor: PrintVisitorInterface) {
-    printVisitor.visitTextNode(this);
+  accept<R>(visitor: ExpVisitorInterface<R>): R {
+    return visitor.visitTextNode(this);
   }
 }
 
-export class AttributeExpr implements PrintAccepterInterface {
+export class AttributeExpr implements AccepterInterface {
   constructor(
     public name: string,
     public value: (string | VariableExpr | IfNodeExpr)[],
   ) {}
 
-  accept(printVisitor: PrintVisitorInterface) {
-    printVisitor.visitAttribute(this);
+  accept<R>(visitor: ExpVisitorInterface<R>): R {
+    return visitor.visitAttribute(this);
   }
 }
 
-export class ElementNodeExpr implements PrintAccepterInterface {
+export class ElementNodeExpr implements AccepterInterface {
   constructor(
     public tagName: string,
     public children: Expr[],
     public attributes: AttributeExpr[],
   ) {}
 
-  accept(printVisitor: PrintVisitorInterface) {
-    printVisitor.visitElementNode(this);
+  accept<R>(visitor: ExpVisitorInterface<R>): R {
+    return visitor.visitElementNode(this);
   }
 }
 
-export class VariableExpr implements PrintAccepterInterface {
+export class VariableExpr implements AccepterInterface {
   constructor(public name: string) {}
 
-  accept(printVisitor: PrintVisitorInterface) {
-    printVisitor.visitVariable(this);
+  accept<R>(visitor: ExpVisitorInterface<R>): R {
+    return visitor.visitVariable(this);
   }
 }
 
-export class IfNodeExpr implements PrintAccepterInterface {
+export class IfNodeExpr implements AccepterInterface {
   constructor(
     public matchVariable: VariableExpr,
     public ifBranchTemplate: Expr,
     public elseBranchTemplate?: Expr,
   ) {}
 
-  accept(printVisitor: PrintVisitorInterface) {
-    printVisitor.visitIfNode(this);
+  accept<R>(visitor: ExpVisitorInterface<R>): R {
+    return visitor.visitIfNode(this);
   }
 }
 
-export class ForNodeExpr implements PrintAccepterInterface {
+export class ForNodeExpr implements AccepterInterface {
   constructor(
     public iterVariable: VariableExpr,
     public collectionVariable: VariableExpr,
     public bodyTemplate: Expr,
   ) {}
 
-  accept(printVisitor: PrintVisitorInterface) {
-    printVisitor.visitForNode(this);
+  accept<R>(visitor: ExpVisitorInterface<R>): R {
+    return visitor.visitForNode(this);
   }
 }
 

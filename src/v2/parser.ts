@@ -24,7 +24,7 @@ import { TokenType } from './constants.ts';
 export class Parser {
   private current: number = 0;
 
-  constructor(public readonly tokens: Token[]) {}
+  constructor(private readonly tokens: Token[]) {}
 
   // utils methods start
   private tokensToString(tokens: Token[]): string {

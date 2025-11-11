@@ -18,7 +18,7 @@ test('It parses a simple template without vars and statements', () => {
 
   const tokens = scanner.startScan();
   const parser = new Parser(tokens);
-  const parsed = parser.parse()[0] as ElementNodeExpr;
+  const parsed = parser.parse()![0] as ElementNodeExpr;
 
   expect(parsed.attributes[2].name).toBe('data-user-on');
 
@@ -44,7 +44,7 @@ test('It parses a template with 2 vars', () => {
 
   const tokens = scanner.startScan();
   const parser = new Parser(tokens);
-  const parsed = parser.parse()[0] as ElementNodeExpr;
+  const parsed = parser.parse()![0] as ElementNodeExpr;
 
   const customClassVars = parsed.attributes[0].value.filter(
     (v) => v instanceof VariableExpr,
@@ -64,7 +64,7 @@ test('It parses a template with 1 var as tag child', () => {
 
   const tokens = scanner.startScan();
   const parser = new Parser(tokens);
-  const parsed = parser.parse()[0] as ElementNodeExpr;
+  const parsed = parser.parse()![0] as ElementNodeExpr;
 
   const spanChild = parsed.children[0][0] as ElementNodeExpr;
   const varExpr = spanChild.children[0][0] as VariableExpr;
@@ -88,7 +88,7 @@ test('It parses a template with if else statement and vars', () => {
 
   const tokens = scanner.startScan();
   const parser = new Parser(tokens);
-  const parsed = parser.parse()[0] as ElementNodeExpr;
+  const parsed = parser.parse()![0] as ElementNodeExpr;
 
   const ifNodeExpr = parsed.children[0][0] as IfNodeExpr;
   expect(ifNodeExpr.matchVariable).toEqual(
@@ -128,7 +128,7 @@ test('It parses a template with if else statement in attribute value', () => {
 
   const tokens = scanner.startScan();
   const parser = new Parser(tokens);
-  const parsed = parser.parse()[0] as ElementNodeExpr;
+  const parsed = parser.parse()![0] as ElementNodeExpr;
 
   const classAttribute = parsed.attributes[0];
   const complexValues = classAttribute.value.filter((v) => v instanceof IfNodeExpr);
@@ -165,7 +165,7 @@ test('It parses a template with for in statement', () => {
 
   const tokens = scanner.startScan();
   const parser = new Parser(tokens);
-  const parsed = parser.parse()[0] as ElementNodeExpr;
+  const parsed = parser.parse()![0] as ElementNodeExpr;
 
   const forNodeExpr = parsed.children[0][0] as ForNodeExpr;
   expect(forNodeExpr.iterVariable).toEqual(

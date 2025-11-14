@@ -23,11 +23,11 @@ export class StringInterpreter implements ExpVisitorInterface<string> {
       }
     }
 
-    return typeof ctxValue === 'string' ? ctxValue : '';
+    return typeof ctxValue === 'string' ? ctxValue.trim() : '';
   }
 
   visitTextNode(textNode: TextNodeExpr): string {
-    return textNode.value;
+    return textNode.value.replace(/[\r\n]+/g, '').replace(/\s+/g, ' ');
   }
 
   visitAttribute(attribute: AttributeExpr): string {
@@ -58,7 +58,10 @@ export class StringInterpreter implements ExpVisitorInterface<string> {
     const attributesString = attributes.map((atr) => this.visitAttribute(atr)).join(' ');
     let childrenString = '';
     if (children) {
-      childrenString = children.map((child) => child[0].accept(this)).join('');
+      childrenString = children
+        .map((child) => child[0].accept(this))
+        .join('')
+        .trim();
     }
     const space = attributesString ? ' ' : '';
     return `<${tagName}${space}${attributesString}>${childrenString}</${tagName}>`;

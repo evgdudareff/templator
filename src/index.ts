@@ -1,3 +1,18 @@
+import { Scanner } from './v2/scanner.js';
+import { Parser } from './v2/parser.js';
+import { DomInterpreter } from './v2/interpreter.js';
+
 export const render = () => {
-  return `<h1>HELLO</h1>`;
+  const scanner = new Scanner(`
+     <li class="abs bcd">test </li>
+  `);
+
+  const tokens = scanner.startScan();
+  const parser = new Parser(tokens);
+  const parsed = parser.parse()![0];
+  const domInterpreter = new DomInterpreter({
+    users: [{ name: 'John' }, { name: 'Jane' }, { name: 'Doe' }],
+  });
+  const result = parsed.accept(domInterpreter);
+  document.body.appendChild(result);
 };

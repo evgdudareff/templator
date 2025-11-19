@@ -1,0 +1,175 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+**Templator** is a template engine that parses HTML templates with dynamic syntax support. It transforms template strings into either DOM elements or HTML strings. The engine supports:
+- Variable interpolation: `{{ variableName }}`
+- Conditional rendering: `{% if condition %} ... {% else %} ... {% endif %}`
+- Iteration: `{% for item in collection %} ... {% endfor %}`
+
+The project demonstrates classic compiler architecture with clean separation between lexical analysis (scanner), syntax analysis (parser), and interpretation (visitor pattern).
+
+## Common Commands
+
+### Build & Development
+```bash
+npm run build          # Build library with Parcel to dist/
+npm start             # Serve demo at demo/index.html with hot reload
+```
+
+### Testing & Quality
+```bash
+npm test              # Run Jest tests with ES modules support (NODE_OPTIONS=--experimental-vm-modules)
+npm test -- --watch  # Run tests in watch mode
+npm test -- path/to/test.ts  # Run specific test file
+npm run lint          # Check code with ESLint
+npm run lint:fix      # Auto-fix linting issues
+npm run format        # Format code with Prettier
+npm run check         # Run lint and format together
+```
+
+### TypeScript
+Configuration in `tsconfig.json`:
+- Target: ESNext
+- Strict mode enabled
+- DOM and ESNext library support
+- Imports can include TypeScript extensions
+
+## Architecture & Pipeline
+
+The project follows a **three-stage compiler architecture**:
+
+### Stage 1: Scanner (Lexical Analysis)
+**File**: `src/v2/scanner.ts`
+
+Converts template strings into tokens using a **mode stack system**:
+- Maintains parsing context (Text, OpenTag, AttrName, VarIdentifier, Statement, etc.)
+- Recognizes HTML tags, attributes, variables (`{{ }}`), and control flow statements (`{% %}`)
+- Produces token stream with type, lexeme, and line information
+
+**Token Categories**:
+- HTML: `TagOpen`, `TagClose`, `TagEndClose`, `TagName`
+- Attributes: `AttrName`, `AttrValue`, `Equal`, `Quote`
+- Variables: `VarOpen` (`{{`), `VarClose` (`}}`), `Identifier`
+- Statements: `StmtOpen` (`{%`), `StmtClose` (`%}`), `If`, `Else`, `For`, `In`, etc.
+
+### Stage 2: Parser (Syntax Analysis)
+**File**: `src/v2/parser.ts`
+
+Builds an Abstract Syntax Tree (AST) from tokens using recursive descent parsing.
+
+**Grammar Supports**:
+- Element nodes with attributes (attributes support variables and conditionals)
+- Text nodes
+- Variable expressions (supports dot notation like `user.name`)
+- If/else blocks
+- For loops with collection iteration
+- Variables in multiple contexts (element content, attributes, control flow)
+
+**Key Methods**:
+- `parse()`: Main entry point
+- `parseElementNode()`: Parse HTML elements
+- `parseAttributes()`: Parse element attributes with variable/conditional support
+- `parseIfElse()`: Parse conditional blocks
+- `parseForStmt()`: Parse loops
+
+### Stage 3: Interpreter (Execution via Visitor Pattern)
+**Files**:
+- `src/v2/parserExpression.ts` - AST node definitions
+- `src/v2/stringInterpreter.ts` - Renders to HTML string
+- `src/v2/interpreter.ts` - Renders to DOM elements
+- `src/v2/printVisitor.ts` - Debug printing
+
+**Visitor Pattern Benefits**:
+- AST nodes are decoupled from operations
+- Easy to add new output formats without modifying nodes
+- Multiple interpretation strategies from single AST
+
+**Supported Visitors**:
+1. `StringInterpreter` - Produces HTML string with whitespace normalization
+2. `DomInterpreter` - Produces DOM elements for browser
+3. `PrintVisitor` - Console debugging (prints AST structure)
+
+### Data Flow Example
+
+```
+Input: {% for user in users %}<li>{{ user.name }}</li>{% endfor %}
+        ↓
+[Scanner] → [ForNode, ElementNode, VariableNode, ...]
+        ↓
+[Parser] → ForNodeExpr { iterVar, collection, bodyTemplate }
+        ↓
+[Interpreter] → StringInterpreter or DomInterpreter
+        ↓
+Output: <li>John</li><li>Jane</li> OR HTMLElement[] with DOM nodes
+```
+
+## Code Organization
+
+```
+src/
+├── index.ts                    # Entry point & demo usage
+├── v2/                         # Main template engine (v2)
+│   ├── scanner.ts              # Tokenization
+│   ├── scanner.test.ts         # Scanner tests
+│   ├── token.ts                # Token type definition
+│   ├── constants.ts            # TokenType enum, ScannerMode, keywords
+│   ├── parser.ts               # AST building
+│   ├── parser.test.ts          # Parser tests
+│   ├── parserExpression.ts     # AST nodes & Visitor interface
+│   ├── stringInterpreter.ts    # String rendering visitor
+│   ├── stringInterpreter.test.ts # String rendering tests
+│   ├── interpreter.ts          # DOM rendering visitor
+│   └── printVisitor.ts         # Debug visitor
+├── tokenizer.ts                # Legacy v1 - simple variable substitution
+├── tokenizer.test.ts           # v1 tests
+├── types.ts                    # Shared types (ResultType<T, E>)
+└── errors.ts                   # Error definitions
+```
+
+## Key Design Patterns
+
+1. **Visitor Pattern**: Each AST node has `accept<R>(visitor: ExpVisitorInterface<R>): R` method. Visitors implement logic for each node type without modifying node classes.
+
+2. **Mode Stack**: Scanner uses a stack to track parsing context, enabling context-aware tokenization that properly handles nested HTML tags, attributes, and template syntax.
+
+3. **Recursive Descent Parsing**: Parser uses recursive methods for each grammar rule, making the parsing logic straightforward and maintainable.
+
+4. **Strategy Pattern**: Multiple interpreter implementations (StringInterpreter, DomInterpreter) for different output formats, all working with the same AST.
+
+## Development Notes
+
+### Testing Strategy
+- **Scanner tests**: Validate token generation for various template structures
+- **Parser tests**: Validate AST structure and grammar correctness
+- **Interpreter tests**: Validate rendering output and context variable handling
+
+### When Adding Features
+1. Add token type to `TokenType` enum in `constants.ts`
+2. Update scanner mode logic in `scanner.ts` if needed
+3. Update parser grammar and methods in `parser.ts`
+4. Add AST node type in `parserExpression.ts` if needed
+5. Implement visitor methods in interpreter classes
+6. Add tests at each stage (scanner, parser, interpreter)
+
+### Configuration
+- **ESLint**: Uses @eslint/js and typescript-eslint, ignores node_modules, dist, coverage, markdown
+- **Prettier**: 100 char line width, 2 space tabs, single quotes, trailing commas
+- **TypeScript**: Strict mode enabled, ES modules, DOM library support
+
+## Version Notes
+
+**V1** (Legacy - in `src/tokenizer.ts`): Simple variable substitution with regex
+- Only handles `{{ variable }}` interpolation
+- No HTML parsing or control flow
+- Replaced by v2 but kept for reference
+
+**V2** (Current): Full template engine with proper compiler architecture
+- Complete HTML parsing
+- Variable interpolation with dot notation
+- Conditional rendering
+- Loop support
+- AST-based architecture
+- Multiple output formats

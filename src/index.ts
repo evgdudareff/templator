@@ -1,6 +1,6 @@
-import { Scanner } from './v2/scanner.js';
-import { Parser } from './v2/parser.js';
-import { DomInterpreter } from './v2/interpreter.js';
+import { Scanner } from './compiler/scanner/scanner.js';
+import { Parser } from './compiler/parser/parser.js';
+import { DomInterpreter } from './interpreters/domInterpreter.js';
 
 export const render = () => {
   const scanner = new Scanner(`

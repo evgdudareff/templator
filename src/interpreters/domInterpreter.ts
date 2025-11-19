@@ -6,8 +6,9 @@ import {
   IfNodeExpr,
   TextNodeExpr,
   VariableExpr,
-} from './parserExpression.ts';
-import { isString } from '../typeGuards.ts';
+} from '../core/expressions.ts';
+
+const isString = (value: unknown): value is string => typeof value === 'string';
 
 export class DomInterpreter implements ExpVisitorInterface<Node> {
   constructor(private ctx: Record<string, unknown>) {}

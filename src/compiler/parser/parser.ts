@@ -1,4 +1,4 @@
-import { Token } from './token.ts';
+import { Token } from '../token.ts';
 import {
   AttributeExpr,
   ElementNodeExpr,
@@ -7,8 +7,8 @@ import {
   IfNodeExpr,
   TextNodeExpr,
   VariableExpr,
-} from './parserExpression.ts';
-import { TokenType } from './constants.ts';
+} from '../../core/expressions.ts';
+import { TokenType } from '../constants.ts';
 
 // LEXICAL GRAMMAR RULES
 

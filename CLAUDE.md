@@ -42,7 +42,7 @@ Configuration in `tsconfig.json`:
 The project follows a **three-stage compiler architecture**:
 
 ### Stage 1: Scanner (Lexical Analysis)
-**File**: `src/v2/scanner.ts`
+**File**: `src/compiler/scanner/scanner.ts`
 
 Converts template strings into tokens using a **mode stack system**:
 - Maintains parsing context (Text, OpenTag, AttrName, VarIdentifier, Statement, etc.)
@@ -56,7 +56,7 @@ Converts template strings into tokens using a **mode stack system**:
 - Statements: `StmtOpen` (`{%`), `StmtClose` (`%}`), `If`, `Else`, `For`, `In`, etc.
 
 ### Stage 2: Parser (Syntax Analysis)
-**File**: `src/v2/parser.ts`
+**File**: `src/compiler/parser/parser.ts`
 
 Builds an Abstract Syntax Tree (AST) from tokens using recursive descent parsing.
 
@@ -77,10 +77,9 @@ Builds an Abstract Syntax Tree (AST) from tokens using recursive descent parsing
 
 ### Stage 3: Interpreter (Execution via Visitor Pattern)
 **Files**:
-- `src/v2/parserExpression.ts` - AST node definitions
-- `src/v2/stringInterpreter.ts` - Renders to HTML string
-- `src/v2/interpreter.ts` - Renders to DOM elements
-- `src/v2/printVisitor.ts` - Debug printing
+- `src/core/expressions.ts` - AST node definitions & Visitor interface
+- `src/interpreters/stringInterpreter.ts` - Renders to HTML string
+- `src/interpreters/domInterpreter.ts` - Renders to DOM elements
 
 **Visitor Pattern Benefits**:
 - AST nodes are decoupled from operations
@@ -90,7 +89,6 @@ Builds an Abstract Syntax Tree (AST) from tokens using recursive descent parsing
 **Supported Visitors**:
 1. `StringInterpreter` - Produces HTML string with whitespace normalization
 2. `DomInterpreter` - Produces DOM elements for browser
-3. `PrintVisitor` - Console debugging (prints AST structure)
 
 ### Data Flow Example
 
@@ -110,23 +108,24 @@ Output: <li>John</li><li>Jane</li> OR HTMLElement[] with DOM nodes
 
 ```
 src/
-├── index.ts                    # Entry point & demo usage
-├── v2/                         # Main template engine (v2)
-│   ├── scanner.ts              # Tokenization
-│   ├── scanner.test.ts         # Scanner tests
-│   ├── token.ts                # Token type definition
-│   ├── constants.ts            # TokenType enum, ScannerMode, keywords
-│   ├── parser.ts               # AST building
-│   ├── parser.test.ts          # Parser tests
-│   ├── parserExpression.ts     # AST nodes & Visitor interface
-│   ├── stringInterpreter.ts    # String rendering visitor
-│   ├── stringInterpreter.test.ts # String rendering tests
-│   ├── interpreter.ts          # DOM rendering visitor
-│   └── printVisitor.ts         # Debug visitor
-├── tokenizer.ts                # Legacy v1 - simple variable substitution
-├── tokenizer.test.ts           # v1 tests
-├── types.ts                    # Shared types (ResultType<T, E>)
-└── errors.ts                   # Error definitions
+├── index.ts                                # Entry point & demo usage
+├── types.ts                                # Shared types (ResultType<T, E>)
+├── core/
+│   └── expressions.ts                      # AST nodes & Visitor interface
+├── compiler/
+│   ├── constants.ts                        # TokenType enum, ScannerMode, keywords
+│   ├── token.ts                            # Token type definition
+│   ├── scanner/
+│   │   ├── scanner.ts                      # Tokenization (lexical analysis)
+│   │   └── scanner.test.ts                 # Scanner tests
+│   └── parser/
+│       ├── parser.ts                       # AST building (syntax analysis)
+│       └── parser.test.ts                  # Parser tests
+└── interpreters/
+    ├── domInterpreter.ts                   # DOM rendering visitor
+    ├── domInterpreter.test.ts              # DOM interpreter tests
+    ├── stringInterpreter.ts                # String rendering visitor
+    └── stringInterpreter.test.ts           # String rendering tests
 ```
 
 ## Key Design Patterns
@@ -147,29 +146,24 @@ src/
 - **Interpreter tests**: Validate rendering output and context variable handling
 
 ### When Adding Features
-1. Add token type to `TokenType` enum in `constants.ts`
-2. Update scanner mode logic in `scanner.ts` if needed
-3. Update parser grammar and methods in `parser.ts`
-4. Add AST node type in `parserExpression.ts` if needed
-5. Implement visitor methods in interpreter classes
-6. Add tests at each stage (scanner, parser, interpreter)
+1. Add token type to `TokenType` enum in `src/compiler/constants.ts`
+2. Update scanner mode logic in `src/compiler/scanner/scanner.ts` if needed
+3. Update parser grammar and methods in `src/compiler/parser/parser.ts`
+4. Add AST node type in `src/core/expressions.ts` if needed
+5. Implement visitor methods in interpreter classes in `src/interpreters/`
+6. Add tests alongside the implementation files
 
 ### Configuration
 - **ESLint**: Uses @eslint/js and typescript-eslint, ignores node_modules, dist, coverage, markdown
 - **Prettier**: 100 char line width, 2 space tabs, single quotes, trailing commas
 - **TypeScript**: Strict mode enabled, ES modules, DOM library support
 
-## Version Notes
+## Current Implementation (V2)
 
-**V1** (Legacy - in `src/tokenizer.ts`): Simple variable substitution with regex
-- Only handles `{{ variable }}` interpolation
-- No HTML parsing or control flow
-- Replaced by v2 but kept for reference
-
-**V2** (Current): Full template engine with proper compiler architecture
-- Complete HTML parsing
-- Variable interpolation with dot notation
-- Conditional rendering
-- Loop support
-- AST-based architecture
-- Multiple output formats
+The template engine uses a full compiler architecture with proper compiler stages:
+- Complete HTML parsing with proper tag and attribute handling
+- Variable interpolation with dot notation (e.g., `user.profile.name`)
+- Conditional rendering with if/else blocks
+- Loop support with for...in iteration
+- AST-based architecture enabling multiple interpretation strategies
+- Multiple output formats (HTML strings and DOM elements)

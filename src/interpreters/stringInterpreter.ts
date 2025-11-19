@@ -6,7 +6,7 @@ import {
   IfNodeExpr,
   TextNodeExpr,
   VariableExpr,
-} from './parserExpression.js';
+} from '../core/expressions.ts';
 
 export class StringInterpreter implements ExpVisitorInterface<string> {
   constructor(private ctx: Record<string, unknown>) {}

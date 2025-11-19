@@ -1,4 +1,4 @@
-import { Scanner } from './scanner.ts';
+import { Scanner } from '../scanner/scanner.ts';
 import { Parser } from './parser.ts';
 import {
   ElementNodeExpr,
@@ -6,7 +6,7 @@ import {
   VariableExpr,
   IfNodeExpr,
   ForNodeExpr,
-} from './parserExpression.ts';
+} from '../../core/expressions.ts';
 
 test('It parses a simple template without vars and statements', () => {
   const scanner = new Scanner(`

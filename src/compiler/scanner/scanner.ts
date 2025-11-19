@@ -1,5 +1,5 @@
-import { Token } from './token.ts';
-import { keywordTokenTypeMap, ScannerMode, TokenType } from './constants.ts';
+import { Token } from '../token.ts';
+import { keywordTokenTypeMap, ScannerMode, TokenType } from '../constants.ts';
 
 export class Scanner {
   source: string;

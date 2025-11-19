@@ -1,5 +1,5 @@
-import { Scanner } from './scanner.ts';
-import { Parser } from './parser.ts';
+import { Scanner } from '../compiler/scanner/scanner.ts';
+import { Parser } from '../compiler/parser/parser.ts';
 import { StringInterpreter } from './stringInterpreter.ts';
 
 test('It renders a template without excess whitespace', () => {

@@ -2,6 +2,7 @@ import { Token } from '../token.ts';
 import {
   AttributeExpr,
   ElementNodeExpr,
+  EventHandlerExpr,
   Expr,
   ForNodeExpr,
   IfNodeExpr,
@@ -221,10 +222,55 @@ export class Parser {
     return new VariableExpr(variableName);
   }
 
-  private parseAttributes(): AttributeExpr[] {
+  private parseEventHandler(): EventHandlerExpr | null {
+    // @eventName="handlerName"
+    if (!this.match(TokenType.AtSign)) {
+      return null;
+    }
+
+    this.advance();
+    if (!this.match(TokenType.AttrName)) {
+      throw new Error(`Invalid event handler: expected event name at line ${this.peek().line}`);
+    }
+
+    const eventName = this.peek().lexeme;
+    this.advance();
+
+    if (!this.match(TokenType.Equal)) {
+      throw new Error(`Invalid event handler: expected '=' after event name at line ${this.peek().line}`);
+    }
+    this.advance();
+
+    if (!this.match(TokenType.Quote)) {
+      throw new Error(`Invalid event handler: expected quote at line ${this.peek().line}`);
+    }
+    this.advance();
+
+    if (!this.match(TokenType.AttrValue)) {
+      throw new Error(`Invalid event handler: expected handler name at line ${this.peek().line}`);
+    }
+    const handlerName = this.peek().lexeme.trim();
+    this.advance();
+
+    if (!this.match(TokenType.Quote)) {
+      throw new Error(`Invalid event handler: expected closing quote at line ${this.peek().line}`);
+    }
+    this.advance();
+
+    return new EventHandlerExpr(eventName, handlerName);
+  }
+
+  private parseAttributes(): { attributes: AttributeExpr[]; eventHandlers: EventHandlerExpr[] } {
     const attributes: AttributeExpr[] = [];
+    const eventHandlers: EventHandlerExpr[] = [];
 
     while (!this.match(TokenType.TagClose)) {
+      const eventHandler = this.parseEventHandler();
+      if (eventHandler) {
+        eventHandlers.push(eventHandler);
+        continue;
+      }
+
       let attrName = '';
       const attrValue = [];
 
@@ -232,7 +278,7 @@ export class Parser {
         attrName = this.peek().lexeme;
         this.advance();
 
-        while (!this.match(TokenType.AttrName) && !this.match(TokenType.TagClose)) {
+        while (!this.match(TokenType.AttrName) && !this.match(TokenType.TagClose) && !this.match(TokenType.AtSign)) {
           if (this.match(TokenType.AttrValue)) {
             attrValue.push(this.peek().lexeme);
           } else if (this.match(TokenType.VarOpen)) {
@@ -252,15 +298,15 @@ export class Parser {
       }
     }
 
-    return attributes;
+    return { attributes, eventHandlers };
   }
 
   private parseOpenTag() {
     const tagName = this.advance();
-    const parsedAttributes = this.parseAttributes();
+    const { attributes, eventHandlers } = this.parseAttributes();
 
     this.advance();
-    return { openTagName: tagName.lexeme, attributes: parsedAttributes };
+    return { openTagName: tagName.lexeme, attributes, eventHandlers };
   }
 
   private parseCloseTag() {
@@ -276,7 +322,7 @@ export class Parser {
 
   private parseElementNode(): ElementNodeExpr {
     this.advance();
-    const { openTagName, attributes } = this.parseOpenTag();
+    const { openTagName, attributes, eventHandlers } = this.parseOpenTag();
 
     const children = [];
     while (!this.match(TokenType.TagEndClose)) {
@@ -294,7 +340,7 @@ export class Parser {
       throw new Error('Unexpected closeTagName for close');
     }
 
-    return new ElementNodeExpr(openTagName, children, attributes);
+    return new ElementNodeExpr(openTagName, children, attributes, eventHandlers);
   }
   // parse methods end
 

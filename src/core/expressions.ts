@@ -40,6 +40,7 @@ export class ElementNodeExpr implements AccepterInterface {
     public tagName: string,
     public children: Expr[],
     public attributes: AttributeExpr[],
+    public eventHandlers: EventHandlerExpr[] = [],
   ) {}
 
   accept<R>(visitor: ExpVisitorInterface<R>): R {
@@ -77,6 +78,13 @@ export class ForNodeExpr implements AccepterInterface {
   accept<R>(visitor: ExpVisitorInterface<R>): R {
     return visitor.visitForNode(this);
   }
+}
+
+export class EventHandlerExpr {
+  constructor(
+    public eventName: string,
+    public handlerName: string,
+  ) {}
 }
 
 export type Expr = (ElementNodeExpr | TextNodeExpr | VariableExpr | IfNodeExpr | ForNodeExpr)[];

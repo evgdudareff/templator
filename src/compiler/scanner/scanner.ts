@@ -123,6 +123,14 @@ export class Scanner {
     }
   }
 
+  scanAtSign() {
+    const mode = this.getMode();
+    if (mode === ScannerMode.OpenTag && this.matchAlphabetChar()) {
+      this.addToken(TokenType.AtSign);
+      this.pushMode(ScannerMode.AttrName);
+    }
+  }
+
   scanOpenBracket() {
     if (this.matchChar('{')) {
       this.incrementCurrPos();
@@ -244,6 +252,10 @@ export class Scanner {
 
       case '%':
         this.scanPercent();
+        break;
+
+      case '@':
+        this.scanAtSign();
         break;
 
       case '\n':

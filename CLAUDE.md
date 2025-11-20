@@ -8,6 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Variable interpolation: `{{ variableName }}`
 - Conditional rendering: `{% if condition %} ... {% else %} ... {% endif %}`
 - Iteration: `{% for item in collection %} ... {% endfor %}`
+- Event handlers: `@click="handlerName"`, `@mouseover="handlerName"`, etc.
 
 The project demonstrates classic compiler architecture with clean separation between lexical analysis (scanner), syntax analysis (parser), and interpretation (visitor pattern).
 
@@ -51,7 +52,8 @@ Converts template strings into tokens using a **mode stack system**:
 
 **Token Categories**:
 - HTML: `TagOpen`, `TagClose`, `TagEndClose`, `TagName`
-- Attributes: `AttrName`, `AttrValue`, `Equal`, `Quote`
+- Attributes: `AttrName`, `AttrValue`, `Equal`, `Quote`, `AtSign`
+- Event handlers: `AtSign` (`@`), then `AttrName` (event name)
 - Variables: `VarOpen` (`{{`), `VarClose` (`}}`), `Identifier`
 - Statements: `StmtOpen` (`{%`), `StmtClose` (`%}`), `If`, `Else`, `For`, `In`, etc.
 
@@ -62,6 +64,7 @@ Builds an Abstract Syntax Tree (AST) from tokens using recursive descent parsing
 
 **Grammar Supports**:
 - Element nodes with attributes (attributes support variables and conditionals)
+- Event handlers on elements (e.g., `@click="handlerName"`)
 - Text nodes
 - Variable expressions (supports dot notation like `user.name`)
 - If/else blocks
@@ -70,8 +73,9 @@ Builds an Abstract Syntax Tree (AST) from tokens using recursive descent parsing
 
 **Key Methods**:
 - `parse()`: Main entry point
-- `parseElementNode()`: Parse HTML elements
-- `parseAttributes()`: Parse element attributes with variable/conditional support
+- `parseElementNode()`: Parse HTML elements and attached event handlers
+- `parseAttributes()`: Parse element attributes and event handlers (returns both)
+- `parseEventHandler()`: Parse `@eventName="handlerName"` syntax
 - `parseIfElse()`: Parse conditional blocks
 - `parseForStmt()`: Parse loops
 
@@ -81,27 +85,50 @@ Builds an Abstract Syntax Tree (AST) from tokens using recursive descent parsing
 - `src/interpreters/stringInterpreter.ts` - Renders to HTML string
 - `src/interpreters/domInterpreter.ts` - Renders to DOM elements
 
+**AST Nodes**:
+- `TextNodeExpr` - Plain text content
+- `ElementNodeExpr` - HTML element with tag name, attributes, and eventHandlers
+- `AttributeExpr` - Element attribute with name and value
+- `VariableExpr` - Template variable reference
+- `IfNodeExpr` - Conditional block
+- `ForNodeExpr` - Loop iteration
+- `EventHandlerExpr` - Event handler binding (NOT an AccepterInterface, stored in ElementNodeExpr)
+
 **Visitor Pattern Benefits**:
 - AST nodes are decoupled from operations
 - Easy to add new output formats without modifying nodes
 - Multiple interpretation strategies from single AST
 
 **Supported Visitors**:
-1. `StringInterpreter` - Produces HTML string with whitespace normalization
-2. `DomInterpreter` - Produces DOM elements for browser
+1. `StringInterpreter` - Produces HTML string with whitespace normalization (ignores event handlers)
+2. `DomInterpreter` - Produces DOM elements for browser with event handler attachment
+
+**Event Handlers** (DomInterpreter only):
+- Defined in template: `<button @click="onButtonClick">Click</button>`
+- Passed to DomInterpreter constructor as second parameter: `new DomInterpreter(context, handlers)`
+- Each handler receives `(event: Event, context: Record<string, unknown>)` parameters
+- Handlers are automatically attached via `addEventListener` during DOM creation
 
 ### Data Flow Example
 
 ```
-Input: {% for user in users %}<li>{{ user.name }}</li>{% endfor %}
+Input: {% for user in users %}<li @click="onUserClick">{{ user.name }}</li>{% endfor %}
         ↓
-[Scanner] → [ForNode, ElementNode, VariableNode, ...]
+[Scanner] → [ForNode, ElementNode, VariableNode, EventHandlerNode, ...]
         ↓
-[Parser] → ForNodeExpr { iterVar, collection, bodyTemplate }
+[Parser] → ForNodeExpr {
+             iterVar: user,
+             collection: users,
+             bodyTemplate: ElementNodeExpr {
+               tagName: 'li',
+               eventHandlers: [EventHandlerExpr { eventName: 'click', handlerName: 'onUserClick' }],
+               children: [VariableNode]
+             }
+           }
         ↓
-[Interpreter] → StringInterpreter or DomInterpreter
+[Interpreter] → StringInterpreter (ignores handlers) OR DomInterpreter (attaches handlers)
         ↓
-Output: <li>John</li><li>Jane</li> OR HTMLElement[] with DOM nodes
+Output: <li>John</li><li>Jane</li> OR HTMLElement[] with click listeners
 ```
 
 ## Code Organization
@@ -165,5 +192,31 @@ The template engine uses a full compiler architecture with proper compiler stage
 - Variable interpolation with dot notation (e.g., `user.profile.name`)
 - Conditional rendering with if/else blocks
 - Loop support with for...in iteration
+- Event handler binding via `@eventName="handlerName"` syntax (DomInterpreter only)
 - AST-based architecture enabling multiple interpretation strategies
 - Multiple output formats (HTML strings and DOM elements)
+
+### Event Handler Architecture
+
+Event handlers are **NOT** part of the visitor pattern. Instead, they are:
+- Stored directly in `ElementNodeExpr.eventHandlers: EventHandlerExpr[]`
+- Parsed by `Parser.parseEventHandler()` method
+- Attached by `DomInterpreter` during element creation via `addEventListener`
+- Ignored by `StringInterpreter` (not included in HTML output)
+
+This design keeps event handling logic separate from the core visitor pattern, as handlers are DOM-specific concerns that don't apply to string rendering.
+
+### Example with Event Handlers
+
+```typescript
+const interpreter = new DomInterpreter(
+  { users: [{ name: 'Alice' }, { name: 'Bob' }] },
+  {
+    onUserClick: (event, context) => {
+      console.log(`Clicked on: ${(event.target as HTMLElement).textContent}`);
+    }
+  }
+);
+```
+
+Template: `<button @click="onUserClick">Click me</button>`

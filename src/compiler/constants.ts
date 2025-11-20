@@ -3,6 +3,7 @@ export enum TokenType {
   Equal = 'EQUAL', // =
   TagClose = 'TAG_CLOSE', // >
   Quote = 'QUOTE', // "
+  AtSign = 'AT_SIGN', // @
 
   // DOUBLE CHARACTERS
   TagOpen = 'TAG_OPEN', // <alphabetic
@@ -15,6 +16,7 @@ export enum TokenType {
   // LITERALS
   TagName = 'TAG_NAME', // div, img ...
   AttrName = 'ATTR_NAME', // class, id ...
+  EventName = 'EVENT_NAME', // click, mouseover ...
   AttrValue = 'ATTR_VALUE', // attribute text value
   Text = 'TEXT', // other text
   Identifier = 'IDENTIFIER', // variable name

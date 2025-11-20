@@ -1,6 +1,7 @@
 import {
   AttributeExpr,
   ElementNodeExpr,
+  EventHandlerExpr,
   ExpVisitorInterface,
   ForNodeExpr,
   IfNodeExpr,
@@ -10,8 +11,13 @@ import {
 
 const isString = (value: unknown): value is string => typeof value === 'string';
 
+export type EventHandler = (event: Event, context: Record<string, unknown>) => void;
+
 export class DomInterpreter implements ExpVisitorInterface<Node> {
-  constructor(private ctx: Record<string, unknown>) {}
+  constructor(
+    private ctx: Record<string, unknown>,
+    private eventHandlers: Record<string, EventHandler> = {},
+  ) {}
 
   visitTextNode(textNode: TextNodeExpr): Text {
     return document.createTextNode(textNode.value);
@@ -21,7 +27,6 @@ export class DomInterpreter implements ExpVisitorInterface<Node> {
     const element = document.createElement(elementNode.tagName);
 
     const attributes = elementNode.attributes.map((attributeExpr) => {
-      // Нужно поддержать множественные атрибуты, сейчас только 1 берём
       const attributeValues = attributeExpr.value
         .map((attributeValue) => {
           if (!attributeValue) {
@@ -54,6 +59,15 @@ export class DomInterpreter implements ExpVisitorInterface<Node> {
     fragment.append(...children);
 
     element.appendChild(fragment);
+    
+    elementNode.eventHandlers.forEach((eventHandler) => {
+      const handler = this.eventHandlers[eventHandler.handlerName];
+      if (handler) {
+        element.addEventListener(eventHandler.eventName, (event) => {
+          handler(event, this.ctx);
+        });
+      }
+    });
 
     return element;
   }
@@ -70,10 +84,13 @@ export class DomInterpreter implements ExpVisitorInterface<Node> {
     if (!Array.isArray(collection)) return document.createDocumentFragment();
 
     const nodes = collection.map((item) => {
-      const nested = new DomInterpreter({
-        ...this.ctx,
-        [iterVariable.name]: item,
-      });
+      const nested = new DomInterpreter(
+        {
+          ...this.ctx,
+          [iterVariable.name]: item,
+        },
+        this.eventHandlers,
+      );
       return bodyTemplate.map((expr) => expr.accept(nested))[0];
     });
     const fragment = document.createDocumentFragment();

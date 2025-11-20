@@ -4,15 +4,38 @@ import { DomInterpreter } from './interpreters/domInterpreter.js';
 
 export const render = () => {
   const scanner = new Scanner(`
-     <li class="abs bcd">test </li>
+    {% for user in users %}
+      <li class="user-item" @click="onUserClick">
+        <span class="user-name">{{ user.name }}</span>
+      </li>
+    {% endfor %}
   `);
 
   const tokens = scanner.startScan();
   const parser = new Parser(tokens);
   const parsed = parser.parse()![0];
-  const domInterpreter = new DomInterpreter({
-    users: [{ name: 'John' }, { name: 'Jane' }, { name: 'Doe' }],
-  });
+
+  const domInterpreter = new DomInterpreter(
+    {
+      users: [
+        { name: 'John Doe' },
+        { name: 'Jane Smith' },
+        { name: 'Bob Johnson' },
+        { name: 'Alice Williams' },
+      ],
+    },
+    {
+      onUserClick: (event) => {
+        const target = event.target as HTMLElement;
+        const name = target.textContent || 'Unknown';
+        console.log(`Clicked on: ${name}`);
+      },
+    },
+  );
+
   const result = parsed.accept(domInterpreter);
-  document.body.appendChild(result);
+  const appContainer = document.getElementById('app');
+  if (appContainer) {
+    appContainer.appendChild(result);
+  }
 };

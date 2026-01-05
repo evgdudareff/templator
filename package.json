@@ -1,5 +1,5 @@
 {
-  "name": "@e.dudarev/templator",
+  "name": "templator-evgdudareff",
   "version": "1.0.0",
   "description": "A template engine for parsing HTML templates with dynamic syntax support. Supports variable interpolation, conditionals, loops, and event handlers.",
   "type": "module",
@@ -36,6 +36,9 @@
     "loops",
     "event-handlers"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "author": "e.dudarev",
   "license": "MIT",
   "repository": {

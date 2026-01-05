@@ -16,7 +16,9 @@ test('It renders a template without excess whitespace', () => {
   const stringInterpreter = new StringInterpreter({});
 
   const result = parsed.accept(stringInterpreter);
-  expect(result).toBe(`<h1 class="awesome" id="1234" data-user-on><span>Scanner</span>Some text</h1>`);
+  expect(result).toBe(
+    `<h1 class="awesome" id="1234" data-user-on><span>Scanner</span>Some text</h1>`,
+  );
 });
 
 test('It handles text with multiple spaces and newlines', () => {
@@ -80,7 +82,7 @@ test('It renders a template with variables', () => {
     customClass: 'welcome-header',
     id: '1234',
     greeting: 'Hello',
-    username: 'User'
+    username: 'User',
   });
 
   const result = parsed.accept(stringInterpreter);
@@ -104,14 +106,14 @@ test('It handles conditional rendering with complex whitespace', () => {
 
   const interpreterLoggedIn = new StringInterpreter({
     isLoggedIn: true,
-    username: 'John'
+    username: 'John',
   });
 
   const resultLoggedIn = parsed.accept(interpreterLoggedIn);
   expect(resultLoggedIn).toBe(`<div><p>Welcome, John!</p></div>`);
 
   const interpreterNotLoggedIn = new StringInterpreter({
-    isLoggedIn: false
+    isLoggedIn: false,
   });
 
   const resultNotLoggedIn = parsed.accept(interpreterNotLoggedIn);
@@ -132,11 +134,7 @@ test('It renders for loop with whitespace', () => {
   const parsed = parser.parse()![0];
 
   const interpreter = new StringInterpreter({
-    users: [
-      { name: 'John' },
-      { name: 'Jane' },
-      { name: 'Doe' }
-    ]
+    users: [{ name: 'John' }, { name: 'Jane' }, { name: 'Doe' }],
   });
 
   const result = parsed.accept(interpreter);

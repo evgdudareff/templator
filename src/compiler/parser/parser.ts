@@ -237,7 +237,9 @@ export class Parser {
     this.advance();
 
     if (!this.match(TokenType.Equal)) {
-      throw new Error(`Invalid event handler: expected '=' after event name at line ${this.peek().line}`);
+      throw new Error(
+        `Invalid event handler: expected '=' after event name at line ${this.peek().line}`,
+      );
     }
     this.advance();
 
@@ -278,7 +280,11 @@ export class Parser {
         attrName = this.peek().lexeme;
         this.advance();
 
-        while (!this.match(TokenType.AttrName) && !this.match(TokenType.TagClose) && !this.match(TokenType.AtSign)) {
+        while (
+          !this.match(TokenType.AttrName) &&
+          !this.match(TokenType.TagClose) &&
+          !this.match(TokenType.AtSign)
+        ) {
           if (this.match(TokenType.AttrValue)) {
             attrValue.push(this.peek().lexeme);
           } else if (this.match(TokenType.VarOpen)) {

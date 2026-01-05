@@ -1,7 +1,6 @@
 import {
   AttributeExpr,
   ElementNodeExpr,
-  EventHandlerExpr,
   ExpVisitorInterface,
   ForNodeExpr,
   IfNodeExpr,
@@ -59,7 +58,7 @@ export class DomInterpreter implements ExpVisitorInterface<Node> {
     fragment.append(...children);
 
     element.appendChild(fragment);
-    
+
     elementNode.eventHandlers.forEach((eventHandler) => {
       const handler = this.eventHandlers[eventHandler.handlerName];
       if (handler) {

@@ -1,41 +1,21 @@
-import { Scanner } from './compiler/scanner/scanner.js';
-import { Parser } from './compiler/parser/parser.js';
-import { DomInterpreter } from './interpreters/domInterpreter.js';
+// Main API exports
+export { Scanner } from './compiler/scanner/scanner.js';
+export { Parser } from './compiler/parser/parser.js';
+export { DomInterpreter } from './interpreters/domInterpreter.js';
+export { StringInterpreter } from './interpreters/stringInterpreter.js';
 
-export const render = () => {
-  const scanner = new Scanner(`
-    {% for user in users %}
-      <li class="user-item" @click="onUserClick">
-        <span class="user-name">{{ user.name }}</span>
-      </li>
-    {% endfor %}
-  `);
+// AST and types
+export type {
+  ExpVisitorInterface,
+  TextNodeExpr,
+  ElementNodeExpr,
+  AttributeExpr,
+  VariableExpr,
+  IfNodeExpr,
+  ForNodeExpr,
+  EventHandlerExpr,
+} from './core/expressions.js';
 
-  const tokens = scanner.startScan();
-  const parser = new Parser(tokens);
-  const parsed = parser.parse()![0];
-
-  const domInterpreter = new DomInterpreter(
-    {
-      users: [
-        { name: 'John Doe' },
-        { name: 'Jane Smith' },
-        { name: 'Bob Johnson' },
-        { name: 'Alice Williams' },
-      ],
-    },
-    {
-      onUserClick: (event) => {
-        const target = event.target as HTMLElement;
-        const name = target.textContent || 'Unknown';
-        console.log(`Clicked on: ${name}`);
-      },
-    },
-  );
-
-  const result = parsed.accept(domInterpreter);
-  const appContainer = document.getElementById('app');
-  if (appContainer) {
-    appContainer.appendChild(result);
-  }
-};
+// Tokens and compiler types
+export { TokenType } from './compiler/constants.js';
+export type { Token } from './compiler/token.js';

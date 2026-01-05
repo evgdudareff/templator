@@ -1,5 +1,5 @@
 {
-  "name": "templator",
+  "name": "@e.dudarev/templator",
   "version": "1.0.0",
   "description": "A template engine for parsing HTML templates with dynamic syntax support. Supports variable interpolation, conditionals, loops, and event handlers.",
   "type": "module",

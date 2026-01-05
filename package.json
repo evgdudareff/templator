@@ -1,8 +1,9 @@
 {
   "name": "templator-evgdudareff",
-  "version": "1.0.1",
+  "version": "1.0.4",
   "description": "A template engine for parsing HTML templates with dynamic syntax support. Supports variable interpolation, conditionals, loops, and event handlers.",
   "type": "module",
+  "source": "src/index.js",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

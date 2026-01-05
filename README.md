@@ -15,7 +15,7 @@
 ## Установка
 
 ```bash
-npm install templator
+npm install templator-evgdudareff
 ```
 
 ## Быстрый старт
